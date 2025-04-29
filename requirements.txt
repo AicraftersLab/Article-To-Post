@@ -5,4 +5,5 @@ beautifulsoup4
 Pillow
 newspaper3k
 openai
-fal-client # For optional Fal AI image generation 
+fal-client # For optional Fal AI image generation
+lxml # Explicitly add lxml dependency for newspaper3k 
