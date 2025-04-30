@@ -14,6 +14,7 @@ import logging
 import uuid  # Add this import for unique IDs
 import datetime # To get current date
 import locale # For date formatting
+from babel.dates import format_date # Import Babel for date formatting
 
 # Try importing fal_client, but gracefully handle if not installed
 try:
@@ -1105,31 +1106,41 @@ def add_text_to_image(image, bullet_point, category_key, brand_logo=None):
         logging.warning("Date font not found, using default.")
         date_font = ImageFont.load_default(size=date_font_size) # Request size
 
-    # --- Calculate Date Size --- (Done first to determine space needed)
+    # --- Format Date using Babel --- 
     date_str = ""
     date_text_height = 0
     try:
         today = datetime.date.today()
-        lang = st.session_state.language
+        lang = st.session_state.language # Get current language code (e.g., 'fr', 'en')
+        
+        # Use Babel's format_date for locale-aware formatting
+        # format='full' gives like "Wednesday, April 30, 2025"
+        # format='long' gives like "April 30, 2025"
+        # Custom format: "EEEE, dd/MM/y" (EEEE is full day name)
         try:
-            if lang == 'fr':
-                locale.setlocale(locale.LC_TIME, 'fr_FR.UTF-8') # Use UTF-8 variant if available
-                date_str = today.strftime("%A, %d/%m/%Y").capitalize()
-            else:
-                locale.setlocale(locale.LC_TIME, 'en_US.UTF-8')
-                date_str = today.strftime("%A, %d/%m/%Y")
-        except locale.Error as locale_err:
-            logging.warning(f"Locale setting failed ({locale_err}), using basic date format.")
-            date_str = today.strftime("%Y-%m-%d") # Fallback format
+            # Use the language code directly with Babel
+            date_str = format_date(today, format='EEEE, dd/MM/y', locale=lang)
+            # Capitalize only the first letter for French style if needed
+            if lang == 'fr': 
+                date_str = date_str.capitalize() 
+            logging.info(f"Formatted date using Babel for locale '{lang}': {date_str}")
+        except Exception as babel_err: # Catch potential Babel errors (e.g., unknown locale)
+            logging.error(f"Babel date formatting failed for locale '{lang}': {babel_err}. Falling back.")
+            date_str = today.strftime("%Y-%m-%d") # Basic fallback
 
-        date_text_bbox = text_draw.textbbox((0, 0), date_str, font=date_font)
-        date_text_height = date_text_bbox[3] - date_text_bbox[1]
+        # Calculate text size using the loaded date_font
+        if date_font:
+             date_text_bbox = text_draw.textbbox((0, 0), date_str, font=date_font)
+             date_text_height = date_text_bbox[3] - date_text_bbox[1]
+        else:
+             logging.error("Date font not available for size calculation.")
+             date_text_height = 0 # Set to zero if font failed to load
 
     except Exception as date_err:
         logging.error(f"Error preparing date: {date_err}", exc_info=True)
         date_str = "" # Clear date string on error
         date_text_height = 0
-        date_font = None
+        # date_font is already handled above
 
     # --- Calculate Main Text Size --- (Using loaded main font)
     initial_font_size = 45 # Reduced further
@@ -1192,11 +1203,14 @@ def add_text_to_image(image, bullet_point, category_key, brand_logo=None):
     content_area_height = text_area_height - main_text_vertical_margin - 20  # 20px bottom margin
     main_text_start_y += (content_area_height - total_main_text_height) // 2
 
-    # --- Draw Date and Line (if date was prepared successfully) ---
+    # --- Draw Date and Line (if date was prepared successfully and font loaded) ---
     if date_str and date_font:
         # Draw date using function with the calculated position
         draw_date_text(text_draw, date_str, date_font, date_position, date_color)
         logging.info(f"Drew date: {date_str} at {date_position}")
+    elif not date_font:
+        logging.error("Could not draw date because date_font was not loaded.")
+    # else: date_str might be empty due to error
 
     # --- Draw Main Text --- (Using calculated position and dedicated function)
     if main_font:

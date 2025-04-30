@@ -6,4 +6,5 @@ Pillow
 newspaper3k
 openai
 fal-client # For optional Fal AI image generation
-lxml[html_clean] # Install lxml with the necessary html_clean extra 
+lxml[html_clean] # Install lxml with the necessary html_clean extra
+Babel # For locale-independent date/number formatting 
