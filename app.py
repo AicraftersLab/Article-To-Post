@@ -1386,8 +1386,8 @@ def main():
 
     st.sidebar.markdown(f"### 🌐 Langue du Contenu")
     language_options_display = {
-        'en': 'English 🇬🇧', 'es': 'Español 🇪🇸', 'fr': 'Français 🇫🇷',
-        'de': 'Deutsch 🇩🇪', 'it': 'Italiano 🇮🇹', 'pt': 'Português 🇵🇹'
+        'en': 'English 🇬🇧', 'fr': 'Français 🇫🇷',
+        # 'de': 'Deutsch 🇩🇪', 'it': 'Italiano 🇮🇹', 'pt': 'Português 🇵🇹','es': 'Español 🇪🇸',
     }
     # Ensure language_name exists for display formatting
     for code, name in language_options_display.items():
