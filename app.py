@@ -15,16 +15,7 @@ import uuid  # Add this import for unique IDs
 import datetime # To get current date
 import locale # For date formatting
 from babel.dates import format_date # Import Babel for date formatting
-
-# Try importing fal_client, but gracefully handle if not installed
-try:
-    import fal_client
-    from io import BytesIO # For Fal AI image handling
-    FAL_CLIENT_AVAILABLE = True
-    logging.info("Successfully imported fal_client")
-except ImportError as e:
-    FAL_CLIENT_AVAILABLE = False
-    logging.warning(f"Could not import fal_client: {e}. Fal AI image generation will not be available.")
+from io import BytesIO
 
 # Set page configuration
 st.set_page_config(
@@ -149,16 +140,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 # Configure API Keys using Streamlit Secrets
 GOOGLE_API_KEY = st.secrets.get("GOOGLE_API_KEY")
-FAL_KEY = st.secrets.get("FAL_KEY")
 OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY") # Optional, if you use it
-
-# Set FAL_KEY as environment variable for fal_client library if available
-if FAL_KEY:
-    os.environ['FAL_KEY'] = FAL_KEY
-    logging.info("FAL_KEY set in environment for fal_client.")
-else:
-    # Log warning but don't prevent app run if only Fal is missing
-    logging.warning("FAL_KEY not found in Streamlit secrets. Fal AI image generation will be unavailable.")
 
 # Configure Google Generative AI
 if not GOOGLE_API_KEY:
@@ -1725,46 +1707,19 @@ def main():
                 choice = st.radio("Options d'image:", ["Générer une Image IA", "Télécharger Votre Propre Image"], horizontal=True)
                 
                 if choice == "Générer une Image IA":
-                    # Check for FAL_KEY from config.py and library availability
-                    if not FAL_KEY or not FAL_CLIENT_AVAILABLE:
-                        errors = []
-                        if not FAL_KEY:
-                            errors.append("⚠️ Clé API Fal AI (FAL_KEY) non trouvée dans config.py. Veuillez la définir.")
-                        if not FAL_CLIENT_AVAILABLE:
-                            errors.append("⚠️ Bibliothèque client Fal non installée. Exécutez 'pip install fal-client' pour l'installer.")
-                        
-                        for error in errors:
-                            st.warning(error)
-                        
-                        # Adjust message based on the issue
-                        if not FAL_CLIENT_AVAILABLE:
-                            st.error("Impossible de générer des images IA car la bibliothèque client Fal est manquante.")
-                        elif not FAL_KEY:
-                            st.error("Impossible de générer des images IA car la clé API Fal AI (FAL_KEY) est manquante dans config.py.")
-                        
-                        st.info("Téléchargez votre propre image à la place.")
-                        # Disable the generate button if dependencies are missing
-                        gen_col1, back_col = st.columns([1, 1])
-                        with gen_col1:
-                            st.button("Générer Maintenant", use_container_width=True, disabled=True)
-                        with back_col:
-                            if st.button("← Retour", key="step3_disabled_back", use_container_width=True):
-                                prev_step()
-                    else:
-                        st.info("Cliquez sur le bouton ci-dessous pour créer une image.")
-                        gen_col1, back_col = st.columns([1, 1])
-                        with gen_col1:
-                            if st.button("Générer Maintenant", use_container_width=True):
-                                logging.info("Generate Image button clicked (Fal AI)")
-                                # Set flags to trigger generation on rerun
-                                st.session_state['generating_image'] = True
-                                st.session_state['image_generated'] = False
-                                st.session_state['image_error'] = None
-                                st.rerun()
-                        with back_col:
-                            if st.button("← Retour", key="step3_gen_back", use_container_width=True):
-                                prev_step()
-                            
+                    st.info("Cliquez sur le bouton ci-dessous pour créer une image.")
+                    gen_col1, back_col = st.columns([1, 1])
+                    with gen_col1:
+                        if st.button("Générer Maintenant", use_container_width=True):
+                            logging.info("Generate Image button clicked")
+                            # Set flags to trigger generation on rerun
+                            st.session_state['generating_image'] = True
+                            st.session_state['image_generated'] = False
+                            st.session_state['image_error'] = None
+                            st.rerun()
+                    with back_col:
+                        if st.button("← Retour", key="step3_gen_back", use_container_width=True):
+                            prev_step()
                 else:  # Upload option
                     st.info("Téléchargez une image à utiliser comme arrière-plan de votre publication Instagram.")
                     uploaded_file = st.file_uploader(
