@@ -183,6 +183,28 @@ if OPENAI_API_KEY:
 else:
     logging.info("OpenAI API Key not found in secrets, skipping configuration.")
 
+# Add support for OpenAI GPT-Image-1 model
+OPENAI_GPT_IMAGE_AVAILABLE = False
+if st.secrets.get("OPENAI_API_KEY"):
+    try:
+        from openai import OpenAI
+        # Test the client configuration with a simple API call
+        try:
+            client = OpenAI(api_key=st.secrets.get("OPENAI_API_KEY"))
+            models = client.models.list()
+            logging.info(f"OpenAI API connection successful: {len(models.data)} models available")
+            OPENAI_GPT_IMAGE_AVAILABLE = True
+            logging.info("OpenAI GPT-Image-1 support configured successfully")
+        except Exception as test_error:
+            logging.error(f"OpenAI API key validation failed: {test_error}")
+            st.error(f"OpenAI API key validation failed: {test_error}")
+    except ImportError:
+        logging.error("Failed to import OpenAI client. Install with 'pip install openai'")
+        st.error("OpenAI library not installed. Please install with 'pip install openai'")
+else:
+    logging.warning("OpenAI API key not found in Streamlit secrets")
+    st.warning("OpenAI API key not found - GPT-Image-1 won't be available")
+
 # Set image dimensions for Instagram post
 IMG_WIDTH = 1079
 IMG_HEIGHT = 1345
@@ -484,158 +506,104 @@ def generate_category(bullet_point, description):
         return "Societe" # Default category key on error
 
 def generate_image(bullet_point, description, size=(IMG_WIDTH, IMG_HEIGHT)):
-    """Generate a high-quality news-style image using Fal AI"""
-    # Check if Fal client library is available and FAL_KEY is set in config
-    if not FAL_CLIENT_AVAILABLE:
-        st.error("Fal client library not available. Please install with 'pip install fal-client'")
-        st.warning("Using enhanced placeholder image instead.")
-        return create_enhanced_placeholder(bullet_point, size)
+    """Generate image using OpenAI's GPT-Image-1 model with proper dimensions"""
+    target_width, target_height = 1079, 1345  # Fixed dimensions for Instagram
     
-    if not FAL_KEY: # Check if FAL_KEY was loaded from config.py
-        st.error("Fal AI API Key (FAL_KEY) not found in config.py. Please set it.")
-        st.warning("Using enhanced placeholder image instead.")
-        return create_enhanced_placeholder(bullet_point, size)
+    logging.info(f"Generating image for: {bullet_point[:50]}...")
+    
+    # Check if OpenAI is available first
+    if not OPENAI_GPT_IMAGE_AVAILABLE:
+        logging.warning("OpenAI GPT-Image-1 is not available. Using placeholder instead.")
+        return create_enhanced_placeholder(bullet_point, (target_width, target_height))
+    
+    # Create prompt for OpenAI
+    scene_prompt = (
+        f"Ultra-realistic 4K editorial photograph press shot illustrating the following topic: {bullet_point}. "
+        f"Context: {description}. "
+        "Symbolic, in-animate elements that visually convey the story; dramatic cinematic lighting, high contrast, deep shadows, news-photography style, vertical 9:16 composition. "
+        "Scene is completely deserted — absolutely no faces, silhouettes or body parts; no written text, no logos, no flags or religious symbols.no public figures. "
+        "without written text, without logos, without flags or religious symbols, without public figures."
+    )
     
     try:
-        # Get image style preference (Note: Fal prompt is quite specific, style might have less effect)
-        image_style = st.session_state.user_preferences.get('image_style', 'photorealistic') # Kept for potential future use
-
-        # Use the bullet point as the core headline for Fal prompt
-        headline = bullet_point
-
-        # Adapt prompt structure for Fal AI based on user example
-        scene_prompt = (
-            f"Ultra-realistic 4K editorial photograph illustrating: {headline}. "
-            f"Context: {description}. " # Added description for context
-            "Symbolic, in-animate elements that visually convey the story; dramatic cinematic lighting, high contrast, deep shadows, news-photography style, vertical 9:16 composition. "
-            "Scene is completely deserted — absolutely no humans, silhouettes or body parts; no written text, logos, flags or religious symbols. "
-            "(face:0.05) (people:0.05) (portrait:0.05) (crowd:0.05) (text:0.05) (logo:0.05) (flag:0.05)"
-        )
-
-        negative_prompt = (
-            "person, human, face, people, portrait, profile, figure,public figures"
-            "text, writing, lettering, words, characters, "
-            "religious symbol, flag, logo, watermark"
-        )
-
-        logging.info(f"Generating image with Fal AI prompt: {scene_prompt[:100]}...")
-
-        # Fal AI parameters from user example
-        fal_arguments = {
-            "prompt": scene_prompt,
-            "negative_prompt": negative_prompt,
-            "image_size": { # Generate at exact dimensions
-                "width": 1079,
-                "height": 1345 
-            },
-            "num_inference_steps": 6,
-            "num_images": 1,
-            "true_cfg": 9.0,
-            "guidance_scale": 1.5,
-            "quality": "premium",
-            "sync_mode": True,
-            "enable_safety_checker": True,
-        }
-
-        logging.info(f"Requesting image from Fal AI with dimensions: {fal_arguments['image_size']['width']}x{fal_arguments['image_size']['height']}")
+        # Initialize OpenAI client
+        if not st.secrets.get("OPENAI_API_KEY"):
+            raise ValueError("OpenAI API key not found in Streamlit secrets")
+            
+        from openai import OpenAI
+        client = OpenAI(api_key=st.secrets.get("OPENAI_API_KEY"))
         
-        # Use fal_client.run - it should automatically pick up FAL_KEY from environment
-        result = fal_client.run(
-            "fal-ai/flux/schnell",
-            arguments=fal_arguments
+        # Call OpenAI's image generation
+        logging.info("Calling OpenAI GPT-Image-1 API")
+        response = client.images.generate(
+            model="gpt-image-1",
+            prompt=scene_prompt,
+            n=1,
+            size="1024x1024",  # Use standard size first
+            quality="high",
         )
-                    
-        logging.info(f"Fal AI API response received")
-
-        # Extract base64 data from the URL in the result
-        if 'images' in result and len(result['images']) > 0 and 'url' in result['images'][0]:
-            image_url = result['images'][0]['url']
-            logging.info(f"Image URL received: {image_url[:50]}...")
+        
+        # Check if response contains valid data
+        if not response.data or len(response.data) == 0:
+            raise ValueError("Invalid response from OpenAI API - missing image data")
             
-            # Handle the image based on response format
-            img = None
-            
-            if 'base64,' in image_url:
-                try:
-                    base64_data = image_url.split('base64,')[1]
-                    # Decode base64 image
-                    image_data = base64.b64decode(base64_data)
-                    # Create PIL Image
-                    img = Image.open(BytesIO(image_data))
-                    logging.info(f"Successfully decoded base64 image, size: {img.size}")
-                except Exception as decode_err:
-                    logging.error(f"Error decoding base64 image: {decode_err}")
-                    raise ValueError(f"Could not decode base64 image: {str(decode_err)}")
-            else:
-                # Sometimes fal might return a direct URL, try fetching it
-                try:
-                    img_response = requests.get(image_url)
-                    if img_response.status_code == 200:
-                        img = Image.open(BytesIO(img_response.content))
-                        logging.info(f"Successfully downloaded image from URL, size: {img.size}")
-                    else:
-                        raise ValueError(f"Failed to download image from Fal URL: {img_response.status_code}")
-                except Exception as url_err:
-                    logging.error(f"Error downloading image from URL: {url_err}")
-                    raise ValueError(f"Could not download image from URL: {str(url_err)}")
-            
-            if img is None:
-                raise ValueError("Failed to obtain valid image from Fal AI response")
-
-            # Resize/Crop the generated 1080x1920 image to the target size (768x957)
-            try:
-                target_width = size[0]
-                target_height = size[1]
-
-                original_width, original_height = img.size
-                target_aspect = target_width / target_height
-                original_aspect = original_width / original_height
-                
-                logging.info(f"Original image size: {img.size}, target size: {size}")
-
-                # Ensure we maintain the exact 1079x1345 aspect ratio
-                if original_aspect != target_aspect:
-                    # Crop to target aspect ratio first
-                    if original_aspect > target_aspect:
-                        # Original image is wider - crop width
-                        new_width = int(original_height * target_aspect)
-                        left = (original_width - new_width) // 2
-                        img = img.crop((left, 0, left + new_width, original_height))
-                    else:
-                        # Original image is taller - crop height
-                        new_height = int(original_width / target_aspect)
-                        top = (original_height - new_height) // 2
-                        img = img.crop((0, top, original_width, top + new_height))
-
-                # Resize to exact target dimensions
-                img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
-                
-                logging.info(f"Image resized to exact dimensions: {img.size}")
-                return img
-            except Exception as resize_err:
-                logging.error(f"Error resizing/cropping image: {resize_err}")
-                raise ValueError(f"Error processing image: {str(resize_err)}")
+        # Extract the image URL from the response
+        image_url = None
+        if hasattr(response.data[0], 'url') and response.data[0].url:
+            image_url = response.data[0].url
+        elif hasattr(response.data[0], 'b64_json') and response.data[0].b64_json:
+            # Handle base64 image if URL is not available
+            import base64
+            image_bytes = base64.b64decode(response.data[0].b64_json)
+            img = Image.open(io.BytesIO(image_bytes))
+            logging.info(f"Image created from base64 data. Size: {img.size}")
         else:
-            # Try to log the actual result structure to help debugging
-            try:
-                import json
-                result_str = json.dumps(result)[:500]  # Truncate to avoid excessive logging
-                logging.error(f"Unexpected response format from Fal AI: {result_str}")
-            except:
-                logging.error(f"Unexpected response format from Fal AI (could not serialize)")
+            raise ValueError("No image URL or base64 data received in OpenAI API response")
+        
+        # If we have a URL, download the image
+        if image_url:
+            logging.info(f"Image URL received, downloading...")
+            response = requests.get(image_url, timeout=10)
+            response.raise_for_status()
+            img = Image.open(io.BytesIO(response.content))
+            logging.info(f"Image downloaded. Size: {img.size}, Mode: {img.mode}")
+        
+        # Calculate dimensions to maintain aspect ratio for target size
+        original_aspect = img.width / img.height
+        target_aspect = target_width / target_height
+        
+        if original_aspect > target_aspect:
+            # Original image is wider - resize to target height then crop width
+            new_width = int(target_height * original_aspect)
+            new_height = target_height
+            img = img.resize((new_width, new_height), Image.LANCZOS)
+            left = (new_width - target_width) // 2
+            img = img.crop((left, 0, left + target_width, target_height))
+        else:
+            # Original image is taller - resize to target width then crop height
+            new_height = int(target_width / original_aspect)
+            new_width = target_width
+            img = img.resize((new_width, new_height), Image.LANCZOS)
+            top = (new_height - target_height) // 2
+            img = img.crop((0, top, target_width, top + target_height))
+        
+        # Convert to RGB if needed
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
             
-            raise ValueError("Unexpected response format from Fal AI API. Check logs for details.")
-            
+        logging.info(f"Final image dimensions: {img.size}")
+        
+        # Record model used for the image generation
+        st.session_state['image_model_used'] = "OpenAI GPT-Image-1"
+        
+        return img
+        
     except Exception as e:
-        # Catch specific authentication errors if possible, otherwise general error
-        if "MissingCredentialsError" in str(e) or "authentication" in str(e).lower():
-             logging.error(f"Fal AI Authentication Error: {e}", exc_info=True)
-             st.error(f"Fal AI Authentication Failed: Ensure FAL_KEY is correctly set in your .env file. Error: {e}")
-        else:
-             logging.error(f"Error generating image with Fal AI: {str(e)}", exc_info=True)
-             st.error(f"Error generating image with Fal AI: {str(e)}")
-        # Fall back to enhanced placeholder
-        return create_enhanced_placeholder(bullet_point, size)
+        logging.error(f"Error generating image with OpenAI: {e}", exc_info=True)
+        st.error(f"Failed to generate image: {str(e)}")
+        # Return a placeholder image with the exact dimensions
+        st.session_state['image_model_used'] = "Fallback (Error)"
+        return create_enhanced_placeholder(bullet_point, (target_width, target_height))
 
 def create_simple_image(bullet_point="Demo image", size=(IMG_WIDTH, IMG_HEIGHT)):
     """Create a simple image with text for testing"""
@@ -1329,12 +1297,25 @@ def auto_generate_content(article_text, bullet_word_count, description_word_coun
 
 def generate_image_for_display(bullet_point, description, use_test_image=False):
     """Generate image and return it directly for display"""
-    if use_test_image:
-        logging.info("Using test image generation")
-        return create_simple_image(bullet_point)
-    else:
-        logging.info("Using Fal AI for image generation")
-        return generate_image(bullet_point, description)
+    try:
+        if use_test_image:
+            logging.info("Using test image generation")
+            img = create_simple_image(bullet_point)
+        else:
+            # Now using OpenAI for image generation directly
+            logging.info("Using OpenAI GPT-Image-1 for image generation")
+            img = generate_image(bullet_point, description)
+        
+        # Ensure the image is in RGB mode for compatibility
+        if img and img.mode != 'RGB':
+            logging.info(f"Converting image from {img.mode} to RGB for compatibility")
+            img = img.convert('RGB')
+            
+        return img
+    except Exception as e:
+        logging.error(f"Error in generate_image_for_display: {e}", exc_info=True)
+        st.error(f"Failed to generate display image: {str(e)}")
+        return create_enhanced_placeholder(bullet_point)
 
 def main():
     st.title(f"Article2Image - {get_text('title')}")
@@ -1770,7 +1751,7 @@ def main():
                             if st.button("← Retour", key="step3_disabled_back", use_container_width=True):
                                 prev_step()
                     else:
-                        st.info("Cliquez sur le bouton ci-dessous pour créer une image à l'aide de Fal AI.")
+                        st.info("Cliquez sur le bouton ci-dessous pour créer une image.")
                         gen_col1, back_col = st.columns([1, 1])
                         with gen_col1:
                             if st.button("Générer Maintenant", use_container_width=True):
