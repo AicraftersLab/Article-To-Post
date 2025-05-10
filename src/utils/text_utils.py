@@ -97,14 +97,23 @@ def get_font(preferred_fonts, size):
         The font object
     """
     font = None
+    # First try to load from the fonts directory
     for font_name in preferred_fonts:
         try:
-            font = ImageFont.truetype(font_name, size)
-            logging.info(f"Using font: {font_name} at size {size}")
+            # Try from the fonts directory first
+            font_path = f"fonts/{font_name}"
+            font = ImageFont.truetype(font_path, size)
+            logging.info(f"Using font from fonts directory: {font_path} at size {size}")
             return font
         except IOError:
-            logging.debug(f"Font {font_name} not found.")
-            continue
+            # Try as an absolute path or system font
+            try:
+                font = ImageFont.truetype(font_name, size)
+                logging.info(f"Using system font: {font_name} at size {size}")
+                return font
+            except IOError:
+                logging.debug(f"Font {font_name} not found.")
+                continue
     
     # If all preferred fonts fail, use default
     logging.warning(f"All preferred fonts failed. Using default PIL font.")

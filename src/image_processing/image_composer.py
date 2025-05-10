@@ -103,7 +103,7 @@ def draw_category_label(draw, text, font_path, font_size, position, text_color, 
     """
     try:
         # Try loading the preferred font, with fallbacks
-        font = get_font([font_path, "Montserrat-Bold.ttf", "Montserrat-Italic.ttf", "arialbd.ttf"], font_size)
+        font = get_font(["Poppins-BoldItalic.ttf", font_path, "Montserrat-Bold.ttf", "Montserrat-Italic.ttf", "arialbd.ttf"], font_size)
 
         # Calculate text size
         text_bbox = draw.textbbox((0, 0), text, font=font)
@@ -187,10 +187,10 @@ def add_text_to_image(image, bullet_point, category_key, brand_logo=None, langua
 
     # --- Load Fonts ---
     main_font_path = None
-    preferred_fonts = ["Montserrat-Bold.ttf", "arialbd.ttf", "ariblk.ttf", "arial.ttf"]
+    preferred_fonts = ["Poppins-Bold.ttf", "Montserrat-Bold.ttf", "arialbd.ttf", "ariblk.ttf", "arial.ttf"]
     
     main_font = get_font(preferred_fonts, INITIAL_MAIN_FONT_SIZE)
-    date_font = get_font(["Montserrat-Italic.ttf", "ariali.ttf", "arial.ttf"], DATE_FONT_SIZE)
+    date_font = get_font(["Poppins-Italic.ttf", "Montserrat-Italic.ttf", "ariali.ttf", "arial.ttf"], DATE_FONT_SIZE)
 
     # --- Format Date using Babel --- 
     date_str = ""

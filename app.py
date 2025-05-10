@@ -91,7 +91,7 @@ def handle_step1_article_input(input_method):
             submit_col1, submit_col2 = st.columns([1, 3])
             with submit_col1:
                 submit_btn = st.form_submit_button("Soumettre", use_container_width=True)
-        
+            
         # Process URL if submitted and URL exists
         if submit_btn and url:
             with st.spinner("Extraction de l'article..."):
@@ -99,27 +99,27 @@ def handle_step1_article_input(input_method):
                     article_data = extract_article_from_url(url)
                     if article_data:
                         st.markdown('<div class="success-box">Article extrait avec succès!</div>', unsafe_allow_html=True)
-                        st.session_state.article_text = article_data["text"]
+                    st.session_state.article_text = article_data["text"]
+                    
+                    # Auto-generate content when article is extracted
+                    content = auto_generate_content(
+                        st.session_state.article_text, 
+                        st.session_state.bullet_word_count, 
+                        st.session_state.description_word_count,
+                        st.session_state.hashtag_count,
+                        st.session_state.language
+                    )
+                    
+                    if content:
+                        st.session_state.bullet_point = content['bullet_point']
+                        st.session_state.description = content['description']
+                        st.session_state.hashtags = content['hashtags']
+                        st.session_state.category = content['category']
+                        st.session_state.article_hash = content['article_hash']
+                        st.session_state.generated = True
                         
-                        # Auto-generate content when article is extracted
-                        content = auto_generate_content(
-                            st.session_state.article_text, 
-                            st.session_state.bullet_word_count, 
-                            st.session_state.description_word_count,
-                            st.session_state.hashtag_count,
-                            st.session_state.language
-                        )
-                        
-                        if content:
-                            st.session_state.bullet_point = content['bullet_point']
-                            st.session_state.description = content['description']
-                            st.session_state.hashtags = content['hashtags']
-                            st.session_state.category = content['category']
-                            st.session_state.article_hash = content['article_hash']
-                            st.session_state.generated = True
-                            
-                            # Go to next step automatically
-                            next_step()
+                        # Go to next step automatically
+                        next_step()
                     else:
                         st.error(f"Impossible d'extraire le contenu de {url}. Veuillez essayer une autre URL ou entrer le texte directement.")
                 except Exception as e:
@@ -131,14 +131,14 @@ def handle_step1_article_input(input_method):
         # Form for text submission
         with st.form(key="text_input_form"):
             text_input_val = st.text_area("Entrez le texte de l'article:", 
-                                         value=st.session_state.article_text, 
-                                         height=200, 
-                                         help="Copiez et collez le texte de votre article ici", 
-                                         placeholder="Collez le texte de votre article ici...")
+                                     value=st.session_state.article_text, 
+                                     height=200, 
+                                     help="Copiez et collez le texte de votre article ici", 
+                                     placeholder="Collez le texte de votre article ici...")
             submit_col1, submit_col2 = st.columns([1, 3])
             with submit_col1:
                 submit_btn = st.form_submit_button("Soumettre", use_container_width=True)
-                
+            
         # Process text if submitted and text exists
         if submit_btn and text_input_val:
             st.session_state.article_text = text_input_val
@@ -171,7 +171,7 @@ def handle_step1_article_input(input_method):
             if st.button("Régénérer", key="regenerate_btn", use_container_width=True):
                 # Clear previous generation
                 st.session_state.generated = False
-                
+            
                 # Force regeneration with new settings
                 content = auto_generate_content(
                     st.session_state.article_text, 
@@ -267,11 +267,11 @@ def handle_step2_content_generation():
         with back_col:
             if st.button("← Retour", key="step2_back", use_container_width=True):
                 prev_step()
-
+        
         with next_col:
             if st.button("Suivant →", key="step2_next", use_container_width=True):
                 next_step()
-        
+                
     st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -294,7 +294,7 @@ def handle_step3_image_generation(openai_client):
             img_buf.seek(0)
             display_width = 450
             st.image(img_buf, caption="Votre Image pour Instagram", width=display_width)
-            
+                
             st.markdown("--- ")
             back_col, next_col = st.columns([1, 1])
             with back_col:
@@ -312,29 +312,29 @@ def handle_step3_image_generation(openai_client):
             
             if choice == "Générer une Image IA":
                 st.info("Cliquez sur le bouton ci-dessous pour créer une image.")
-                gen_col, back_col = st.columns([1, 1])
-                with gen_col:
-                    if st.button("Générer Maintenant", use_container_width=True):
-                        with st.spinner("Création de l'image IA..."):
-                            progress = st.progress(0)
-                            status_msg = st.info("Génération de l'image (cela peut prendre jusqu'à 30 secondes)...")
-                            progress.progress(25)
-                            
-                            # Generate the image
-                            image = generate_image_for_display(
-                                openai_client,
-                                st.session_state.bullet_point,
-                                st.session_state.description
-                            )
-                            
-                            progress.progress(100)
-                            status_msg.empty()
-                            progress.empty()
-                            
-                            st.session_state.base_image = image
-                            st.session_state.image_generated = True
-                            st.rerun()
-    
+            gen_col, back_col = st.columns([1, 1])
+            with gen_col:
+                if st.button("Générer Maintenant", use_container_width=True):
+                    with st.spinner("Création de l'image IA..."):
+                        progress = st.progress(0)
+                        status_msg = st.info("Génération de l'image (cela peut prendre jusqu'à 30 secondes)...")
+                        progress.progress(25)
+                        
+                        # Generate the image
+                        image = generate_image_for_display(
+                            openai_client,
+                            st.session_state.bullet_point,
+                            st.session_state.description
+                        )
+                        
+                        progress.progress(100)
+                        status_msg.empty()
+                        progress.empty()
+                        
+                        st.session_state.base_image = image
+                        st.session_state.image_generated = True
+                        st.rerun()
+        
     st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -419,16 +419,16 @@ def handle_step4_logo_addition():
                     except Exception as e:
                         logging.error(f"Error processing/saving uploaded logo: {e}")
                         st.error(f"Erreur lors du traitement du logo: {e}")
-        
-        # Skip logo
-        back_col, next_col = st.columns([1, 1])
-        with back_col:
-            if st.button("← Retour", key="step4_skip_back", use_container_width=True):
-                prev_step()
-        with next_col:
-            if st.button("Passer →", key="step4_skip", use_container_width=True):
-                next_step()
     
+    # Skip logo
+    back_col, next_col = st.columns([1, 1])
+    with back_col:
+        if st.button("← Retour", key="step4_skip_back", use_container_width=True):
+            prev_step()
+    with next_col:
+        if st.button("Passer →", key="step4_skip", use_container_width=True):
+            next_step()
+
     st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -447,7 +447,7 @@ def handle_step5_final_post():
         default_category = st.session_state.get('category', 'Societe')
         allowed_categories = ["Societe", "hi-tech", "sports", "nation", "economie", 
                              "regions", "culture", "monde", "Sante", "LifeStyle"]
-        
+
         st.write("Choisissez une catégorie pour votre publication (ou utilisez celle générée automatiquement):")
         selected_category = st.selectbox(
              "Sélectionner la Catégorie:",
@@ -456,7 +456,7 @@ def handle_step5_final_post():
              help="Choisissez l'étiquette de catégorie pour votre image.",
              key="category_selection"
         )
-        
+    
         st.session_state.category = selected_category
         
         create_col, back_col = st.columns([1, 1])
@@ -504,7 +504,7 @@ def handle_step5_final_post():
                     img_buf = io.BytesIO()
                     final_image.save(img_buf, format="PNG")
                     byte_im = img_buf.getvalue()
-                    
+                        
                     st.download_button(
                         label="Télécharger l'Image",
                         data=byte_im,
@@ -517,7 +517,7 @@ def handle_step5_final_post():
                     with st.expander("Cliquez pour afficher la légende", expanded=True):
                         st.text_area("Description:", description, height=100)
                         st.text_area("Hashtags:", hashtags, height=80)
-                    
+        
         with back_col:
             if st.button("← Retour", key="step5_back", use_container_width=True):
                 prev_step()
