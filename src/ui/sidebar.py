@@ -58,8 +58,8 @@ def render_language_selector():
     st.sidebar.markdown(f"### 🌐 {get_text('language', current_language=st.session_state.language)}")
     
     language_options_display = {
-        'en': 'English 🇬🇧', 
         'fr': 'Français 🇫🇷',
+        'en': 'English 🇬🇧', 
         # 'de': 'Deutsch 🇩🇪', 'it': 'Italiano 🇮🇹', 'pt': 'Português 🇵🇹','es': 'Español 🇪🇸',
     }
     
@@ -77,7 +77,7 @@ def render_language_selector():
         current_lang_index = list(language_options_display.keys()).index(st.session_state.language)
     except ValueError:
         # Fallback if the state somehow holds an invalid value
-        current_lang_index = list(language_options_display.keys()).index('fr')
+        current_lang_index = 0  # Default to French (first option)
     
     selected_language_code = st.sidebar.selectbox(
         "Langue du contenu généré:",

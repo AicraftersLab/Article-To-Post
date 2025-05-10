@@ -211,6 +211,26 @@ def handle_step2_content_generation():
     else:
         st.info("Révisez et modifiez le contenu généré ci-dessous.")
         
+        # Add regeneration button
+        if st.button("🔄 Régénérer le contenu", key="regenerate_content_btn"):
+            with st.spinner("Régénération du contenu..."):
+                # Force regeneration with current settings
+                content = auto_generate_content(
+                    st.session_state.article_text, 
+                    st.session_state.bullet_word_count, 
+                    st.session_state.description_word_count,
+                    st.session_state.hashtag_count,
+                    st.session_state.language
+                )
+                
+                if content:
+                    st.session_state.bullet_point = content['bullet_point']
+                    st.session_state.description = content['description']
+                    st.session_state.hashtags = content['hashtags']
+                    st.session_state.category = content['category']
+                    st.session_state.article_hash = content['article_hash']
+                    st.rerun()
+        
         col1, col2 = st.columns([3, 2])
         
         with col1:

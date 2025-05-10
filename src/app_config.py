@@ -157,7 +157,7 @@ def initialize_session_state():
         }
         
     if 'language' not in st.session_state:
-        st.session_state.language = 'en'
+        st.session_state.language = 'fr'
         
     if 'page_id' not in st.session_state:
         st.session_state.page_id = str(uuid.uuid4())  # Create a unique session ID
