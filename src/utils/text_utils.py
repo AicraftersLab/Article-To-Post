@@ -7,6 +7,7 @@ import requests
 from newspaper import Article
 import streamlit as st
 from PIL import ImageFont
+import os
 
 
 def extract_article_from_url(url):
@@ -102,17 +103,26 @@ def get_font(preferred_fonts, size):
         try:
             # Try from the fonts directory first
             font_path = f"fonts/{font_name}"
+            absolute_font_path = os.path.abspath(font_path)
+            logging.debug(f"Attempting to load font from: {absolute_font_path}")
+            if os.path.exists(font_path):
+                logging.debug(f"Font file exists at path: {font_path}")
+            else:
+                logging.debug(f"Font file NOT found at path: {font_path}")
+                
             font = ImageFont.truetype(font_path, size)
-            logging.info(f"Using font from fonts directory: {font_path} at size {size}")
+            logging.info(f"SUCCESS: Loaded font from fonts directory: {font_path} at size {size}")
             return font
-        except IOError:
+        except IOError as e:
             # Try as an absolute path or system font
+            logging.debug(f"Failed to load font from {font_path}: {e}")
             try:
+                logging.debug(f"Trying system font: {font_name}")
                 font = ImageFont.truetype(font_name, size)
-                logging.info(f"Using system font: {font_name} at size {size}")
+                logging.info(f"SUCCESS: Loaded system font: {font_name} at size {size}")
                 return font
-            except IOError:
-                logging.debug(f"Font {font_name} not found.")
+            except IOError as e:
+                logging.debug(f"Font {font_name} not found as system font: {e}")
                 continue
     
     # If all preferred fonts fail, use default

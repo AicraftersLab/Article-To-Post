@@ -13,7 +13,7 @@ from src.api.openai_integration import configure_openai
 
 def setup_logging():
     """Configure logging"""
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 def configure_api_keys():
