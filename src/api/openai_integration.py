@@ -6,6 +6,16 @@ import logging
 import requests
 import streamlit as st
 from PIL import Image
+import random
+import os
+
+# Import the prompt templates
+from src.api.prompt_templates import (
+    IMAGE_SYSTEM_PROMPT,
+    IMAGE_USER_PROMPT_TEMPLATE,
+    IMAGE_PROMPT_SUFFIX,
+    FALLBACK_IMAGE_PROMPT
+)
 
 
 def configure_openai():
@@ -15,12 +25,34 @@ def configure_openai():
     Returns:
         tuple: (openai_client, is_available_flag) or (None, False) if error
     """
-    OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY")
+    # First check for a temporary key in session state (highest priority)
+    OPENAI_API_KEY = None
+    if 'temp_openai_key' in st.session_state:
+        OPENAI_API_KEY = st.session_state.temp_openai_key
+        logging.info("Using temporary OpenAI API key from session state")
+    
+    # If not found in session state, try Streamlit secrets
+    if not OPENAI_API_KEY:
+        OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY")
+    
+    # If not found in secrets, try environment variables
+    if not OPENAI_API_KEY:
+        OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+        if OPENAI_API_KEY:
+            logging.info("Using OpenAI API key from environment variables")
     
     if not OPENAI_API_KEY:
-        logging.warning("OpenAI API Key not found in Streamlit secrets")
+        logging.warning("OpenAI API Key not found in session state, secrets, or environment variables")
+        st.warning("🔑 OpenAI API Key is missing. Please add it to your secrets.toml file or .env file.")
         return None, False
     
+    # Check if the API key starts with "sk-" which is required for standard OpenAI keys
+    if not OPENAI_API_KEY.startswith("sk-"):
+        logging.error("Invalid OpenAI API key format. Must start with 'sk-'")
+        st.error("❌ Invalid OpenAI API key format. OpenAI API keys must start with 'sk-'.")
+        st.info("If you're using a project key (starting with 'sk-proj-'), please use a standard API key instead.")
+        return None, False
+        
     try:
         from openai import OpenAI
         client = OpenAI(api_key=OPENAI_API_KEY)
@@ -31,17 +63,112 @@ def configure_openai():
             logging.info(f"OpenAI API connection successful: {len(models.data)} models available")
             return client, True
         except Exception as test_error:
-            logging.error(f"OpenAI API key validation failed: {test_error}")
-            st.error(f"OpenAI API key validation failed: {test_error}")
+            error_msg = str(test_error)
+            logging.error(f"OpenAI API key validation failed: {error_msg}")
+            
+            # Provide more helpful error messages based on error type
+            if "401" in error_msg:
+                if "invalid_api_key" in error_msg:
+                    st.error("❌ Invalid API key. Please check that you're using a correct, active OpenAI API key.")
+                    st.info("Note: Project keys (starting with 'sk-proj-') are not compatible with this application. Please use a standard API key.")
+                else:
+                    st.error("❌ Authentication error. Your API key appears to be incorrect or revoked.")
+            elif "insufficient_quota" in error_msg or "429" in error_msg:
+                st.error("❌ OpenAI API quota exceeded. Your account has reached its usage limit.")
+                st.info("Check your OpenAI billing status at https://platform.openai.com/account/billing")
+            else:
+                st.error(f"❌ OpenAI API connection failed: {error_msg}")
+            
             return None, False
             
     except ImportError:
         logging.error("Failed to import OpenAI client. Install with 'pip install openai'")
-        st.error("OpenAI library not installed. Please install with 'pip install openai'")
+        st.error("❌ OpenAI library not installed. Please install with 'pip install openai'")
         return None, False
 
 
-def generate_image(client, bullet_point, description, width=1079, height=1345):
+def generate_image_prompt(client, bullet_point, description, article_text=None):
+    """
+    Generate an optimized image prompt using OpenAI based on the article content
+    
+    Args:
+        client: The configured OpenAI client
+        bullet_point: The bullet point text to base the image on
+        description: Additional context for image generation
+        article_text: The full article text (optional, if available)
+        
+    Returns:
+        str: An optimized prompt for image generation
+    """
+    try:
+        if not client:
+            # Fall back to a default prompt structure if client isn't available
+            return FALLBACK_IMAGE_PROMPT.format(headline=bullet_point)
+        
+        from openai import OpenAI
+        
+        # Prepare parameters for the template
+        # These are selected to ensure a good variety of images based on the content
+        camera_options = ["Canon EOS R5", "Nikon Z9", "Sony A1"]
+        lens_options = ["35mm f/1.4", "50mm f/1.2", "85mm f/1.8", "24mm f/1.4"]
+        iso_options = ["100", "200", "400", "800", "1600"]
+        aperture_options = ["f/1.4", "f/1.8", "f/2.8", "f/4.0", "f/5.6", "f/8.0"]
+        shutter_options = ["1/125s", "1/250s", "1/500s", "1/1000s"]
+        
+        # Default to description if full article text isn't available
+        if article_text is None or article_text.strip() == "":
+            article_text = description
+            
+        # Format the lighting_weather_mood based on the content
+        lighting_options = [
+            "golden hour sunlight", 
+            "high contrast midday light", 
+            "soft diffused morning light",
+            "dramatic cloudy conditions",
+            "blue hour twilight",
+            "neutral indoor lighting"
+        ]
+        
+        # Format the user prompt template with all the parameters
+        user_prompt = IMAGE_USER_PROMPT_TEMPLATE.format(
+            headline=bullet_point,
+            description=description,
+            article_text=article_text,
+            lighting_weather_mood=random.choice(lighting_options),
+            iso=random.choice(iso_options),
+            shutter_speed=random.choice(shutter_options),
+            aperture=random.choice(aperture_options),
+            camera_body=random.choice(camera_options),
+            lens=random.choice(lens_options)
+        )
+        
+        logging.info("Generating optimized image prompt from full article text...")
+        
+        # Make the LLM call to generate the prompt
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": IMAGE_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.7,
+            max_tokens=400,  # Increased token limit for more detailed prompts
+            response_format={"type": "text"}  # Ensures plain text response
+        )
+        
+        generated_prompt = response.choices[0].message.content.strip()
+        logging.info(f"Generated image prompt: {generated_prompt[:100]}...")
+        
+        # The template already adds the suffix, so we don't need to add it again
+        return generated_prompt
+        
+    except Exception as e:
+        logging.error(f"Error generating image prompt: {e}", exc_info=True)
+        # Fallback to a simpler prompt
+        return FALLBACK_IMAGE_PROMPT.format(headline=bullet_point)
+
+
+def generate_image(client, bullet_point, description, width=1079, height=1345, article_text=None):
     """
     Generate image using OpenAI's GPT-Image-1 model with proper dimensions
     
@@ -51,6 +178,7 @@ def generate_image(client, bullet_point, description, width=1079, height=1345):
         description: Additional context for image generation
         width: Target width of the final image
         height: Target height of the final image
+        article_text: The full article text for context (optional)
         
     Returns:
         The generated image as a PIL Image object
@@ -65,18 +193,12 @@ def generate_image(client, bullet_point, description, width=1079, height=1345):
         from src.image_processing.placeholder import create_enhanced_placeholder
         return create_enhanced_placeholder(bullet_point, (target_width, target_height))
     
-    # Create prompt for OpenAI
-    scene_prompt = (
-        f"Ultra-realistic 4K editorial photograph press shot illustrating the following topic: {bullet_point}. "
-        f"Context: {description}. "
-        "Symbolic, in-animate elements that visually convey the story; dramatic cinematic lighting, high contrast, deep shadows, news-photography style, vertical 9:16 composition. "
-        "Scene is completely deserted — absolutely no faces, silhouettes or body parts; no written text, no logos, no flags or religious symbols.no public figures. "
-        "without written text, without logos, without flags or religious symbols, without public figures."
-    )
+    # Generate the optimized prompt using LLM
+    scene_prompt = generate_image_prompt(client, bullet_point, description, article_text)
     
     try:
         # Call OpenAI's image generation
-        logging.info("Calling OpenAI GPT-Image-1 API")
+        logging.info("Calling OpenAI GPT-Image-1 API with optimized prompt")
         response = client.images.generate(
             model="gpt-image-1",
             prompt=scene_prompt,
@@ -114,18 +236,25 @@ def generate_image(client, bullet_point, description, width=1079, height=1345):
         original_aspect = img.width / img.height
         target_aspect = target_width / target_height
         
+        # Determine the resampling filter based on PIL/Pillow version
+        try:
+            RESAMPLING_FILTER = Image.Resampling.LANCZOS
+        except AttributeError:
+            # Fallback for older Pillow versions
+            RESAMPLING_FILTER = Image.LANCZOS
+        
         if original_aspect > target_aspect:
             # Original image is wider - resize to target height then crop width
             new_width = int(target_height * original_aspect)
             new_height = target_height
-            img = img.resize((new_width, new_height), Image.LANCZOS)
+            img = img.resize((new_width, new_height), RESAMPLING_FILTER)
             left = (new_width - target_width) // 2
             img = img.crop((left, 0, left + target_width, target_height))
         else:
             # Original image is taller - resize to target width then crop height
             new_height = int(target_width / original_aspect)
             new_width = target_width
-            img = img.resize((new_width, new_height), Image.LANCZOS)
+            img = img.resize((new_width, new_height), RESAMPLING_FILTER)
             top = (new_height - target_height) // 2
             img = img.crop((0, top, target_width, top + target_height))
         

@@ -8,7 +8,7 @@ from src.image_processing.placeholder import create_enhanced_placeholder, create
 from src.utils.constants import IMG_WIDTH, IMG_HEIGHT
 
 
-def generate_image_for_display(client, bullet_point, description, use_test_image=False):
+def generate_image_for_display(client, bullet_point, description, use_test_image=False, article_text=None):
     """
     Generate image and return it directly for display
     
@@ -17,6 +17,7 @@ def generate_image_for_display(client, bullet_point, description, use_test_image
         bullet_point: The bullet point to base the image on
         description: Additional context for the image
         use_test_image: Whether to use a simple test image instead
+        article_text: The full article text for context (optional)
         
     Returns:
         PIL Image object
@@ -27,8 +28,8 @@ def generate_image_for_display(client, bullet_point, description, use_test_image
             img = create_simple_image(bullet_point)
         else:
             # Use OpenAI for image generation directly
-            logging.info("Using OpenAI GPT-Image-1 for image generation")
-            img = generate_image(client, bullet_point, description, IMG_WIDTH, IMG_HEIGHT)
+            logging.info("Using OpenAI GPT-Image-1 for image generation with full article context")
+            img = generate_image(client, bullet_point, description, IMG_WIDTH, IMG_HEIGHT, article_text)
         
         # Ensure the image is in RGB mode for compatibility
         if img and img.mode != 'RGB':

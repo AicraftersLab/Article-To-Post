@@ -4,6 +4,18 @@ Integration with OpenAI API for text generation functions.
 import logging
 import streamlit as st
 
+# Import the prompt templates
+from src.api.text_prompt_templates import (
+    BULLET_SYSTEM_PROMPT,
+    BULLET_USER_PROMPT_TEMPLATE,
+    DESCRIPTION_SYSTEM_PROMPT,
+    DESCRIPTION_USER_PROMPT_TEMPLATE,
+    HASHTAG_SYSTEM_PROMPT,
+    HASHTAG_USER_PROMPT_TEMPLATE,
+    CATEGORY_SYSTEM_PROMPT,
+    CATEGORY_USER_PROMPT_TEMPLATE
+)
+
 
 def generate_summary_bullet(article_text, max_words=30, language='en'):
     """
@@ -21,22 +33,18 @@ def generate_summary_bullet(article_text, max_words=30, language='en'):
         from openai import OpenAI
         client = OpenAI(api_key=st.secrets.get("OPENAI_API_KEY"))
         
-        # Determine target language for prompt
-        prompt = f"""
-        Create 1 concise bullet point in {language} that summarizes the key point from this article.
-        The bullet point should be approximately {max_words} words long.
-        Make it clear, informative, and capture the most important aspect of the article.
-        Do NOT include a bullet marker or any formatting, just plain text.
-        
-        Article:
-        {article_text}
-        """
+        # Format the user prompt with the article text and parameters
+        user_prompt = BULLET_USER_PROMPT_TEMPLATE.format(
+            language=language,
+            max_words=max_words,
+            article_text=article_text
+        )
         
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are a skilled content summarizer."},
-                {"role": "user", "content": prompt}
+                {"role": "system", "content": BULLET_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt}
             ],
             temperature=0.7,
             max_tokens=150
@@ -66,21 +74,18 @@ def generate_article_description(article_text, max_words=70, language='en'):
         from openai import OpenAI
         client = OpenAI(api_key=st.secrets.get("OPENAI_API_KEY"))
         
-        prompt = f"""
-        Extract the core message of the following article and present it as an engaging description in {language}, approximately {max_words} words long.
-        Write the description directly, as if it's a compelling snippet from the article itself. 
-        Do NOT start with phrases like 'This article discusses' or 'The author argues'. 
-        Focus on presenting the key information and takeaways in an informative and captivating way for a social media audience.
-        
-        Article:
-        {article_text}
-        """
+        # Format the user prompt with the article text and parameters
+        user_prompt = DESCRIPTION_USER_PROMPT_TEMPLATE.format(
+            language=language,
+            max_words=max_words,
+            article_text=article_text
+        )
         
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are a skilled content creator for social media."},
-                {"role": "user", "content": prompt}
+                {"role": "system", "content": DESCRIPTION_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt}
             ],
             temperature=0.7,
             max_tokens=250
@@ -110,22 +115,18 @@ def generate_hashtags(article_text, num_hashtags=5, language='en'):
         from openai import OpenAI
         client = OpenAI(api_key=st.secrets.get("OPENAI_API_KEY"))
         
-        prompt = f"""
-        Generate exactly {num_hashtags} relevant hashtags for a social media post about this article.
-        The primary language of the content is {language}. Generate hashtags appropriate for this language context.
-        Format them as: #Hashtag1 #Hashtag2 #Hashtag3 etc.
-        ONLY return the hashtags themselves with no additional text, explanations, or numbering.
-        Make them relevant to the content.
-        
-        Article:
-        {article_text}
-        """
+        # Format the user prompt with the article text and parameters
+        user_prompt = HASHTAG_USER_PROMPT_TEMPLATE.format(
+            num_hashtags=num_hashtags,
+            language=language,
+            article_text=article_text
+        )
         
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are a social media hashtag specialist."},
-                {"role": "user", "content": prompt}
+                {"role": "system", "content": HASHTAG_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt}
             ],
             temperature=0.7,
             max_tokens=100
@@ -163,22 +164,18 @@ def generate_category(bullet_point, description, allowed_categories):
         from openai import OpenAI
         client = OpenAI(api_key=st.secrets.get("OPENAI_API_KEY"))
         
-        prompt = f"""
-        Analyze the following content (which might be in any language):
-        Bullet Point: {bullet_point}
-        Description: {description}
-
-        Choose the MOST relevant category KEY from this list:
-        {', '.join(allowed_categories)}
-
-        Return ONLY the category KEY from the list, with no other text or explanation. For example, if the best category is 'hi-tech', just return 'hi-tech'.
-        """
+        # Format the user prompt with the content and categories
+        user_prompt = CATEGORY_USER_PROMPT_TEMPLATE.format(
+            bullet_point=bullet_point,
+            description=description,
+            categories=', '.join(allowed_categories)
+        )
         
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",  # Using a smaller model for simple categorization
             messages=[
-                {"role": "system", "content": "You are a content categorization specialist."},
-                {"role": "user", "content": prompt}
+                {"role": "system", "content": CATEGORY_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt}
             ],
             temperature=0.3,
             max_tokens=50

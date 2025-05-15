@@ -53,6 +53,59 @@ def main():
     # Display title
     st.title(f"Article2Image - Instagram Post Generator")
     
+    # Check if OpenAI is configured correctly
+    if not openai_available:
+        st.error("⚠️ OpenAI API is not configured correctly. Some features will be limited.")
+        
+        # Provide more detailed instructions in a collapsible section
+        with st.expander("How to configure OpenAI API", expanded=True):
+            st.markdown("""
+            ### Configuration Instructions
+            
+            This application requires a valid OpenAI API key to generate images and content.
+            
+            1. **Get an API key**: Sign up at [OpenAI Platform](https://platform.openai.com) 
+            and create a standard API key (starts with `sk-` but NOT `sk-proj-`).
+            
+            2. **Configure your key**:
+               - For local development: Create a `.streamlit/secrets.toml` file with `OPENAI_API_KEY = "your-key-here"`
+               - For deployed apps: Add the key in your deployment environment variables
+            
+            3. **Check your billing**: Ensure your OpenAI account has available credits
+            
+            4. **Restart the app**: After setting up your key, restart this application
+            """)
+            
+            # Option to enter key directly (only for development)
+            st.write("---")
+            st.markdown("### 🔑 Enter your OpenAI API key temporarily")
+            st.warning("This is a temporary solution for testing only. The key won't be saved permanently.")
+            
+            with st.form("api_key_form"):
+                temp_api_key = st.text_input("OpenAI API Key", type="password", 
+                                             help="Enter your OpenAI API key (starting with sk-)")
+                submit_key = st.form_submit_button("Use this key")
+                
+                if submit_key and temp_api_key:
+                    if temp_api_key.startswith("sk-"):
+                        # Don't store in environment variable, use session state instead for security
+                        st.session_state.temp_openai_key = temp_api_key
+                        st.success("API key set temporarily! Please refresh the page.")
+                        import time
+                        time.sleep(2)
+                        st.rerun()
+                    else:
+                        st.error("Invalid API key format. Must start with 'sk-'")
+                
+            # Show a demo mode option
+            st.write("---")
+            if st.button("Continue with Limited Features"):
+                st.session_state.demo_mode = True
+                st.rerun()
+            
+            # Stop execution if API is not available
+            st.stop()
+    
     # Display step navigation
     display_step_navigation(get_steps())
     
@@ -120,8 +173,8 @@ def handle_step1_article_input(input_method):
                             
                             # Go to next step automatically
                             next_step()
-                    else:
-                        st.error(f"Impossible d'extraire le contenu de {url}. Veuillez essayer une autre URL ou entrer le texte directement.")
+                        else:
+                            st.error(f"Impossible d'extraire le contenu de {url}. Veuillez essayer une autre URL ou entrer le texte directement.")
                 except Exception as e:
                     st.error(f"Erreur lors de l'extraction de l'article: {str(e)}")
                     st.info("Veuillez essayer une autre URL ou utiliser l'option de saisie de texte.")
@@ -131,10 +184,10 @@ def handle_step1_article_input(input_method):
         # Form for text submission
         with st.form(key="text_input_form"):
             text_input_val = st.text_area("Entrez le texte de l'article:", 
-                                 value=st.session_state.article_text, 
-                                 height=200, 
-                                 help="Copiez et collez le texte de votre article ici", 
-                                 placeholder="Collez le texte de votre article ici...")
+                                     value=st.session_state.article_text, 
+                                                 height=200, 
+                                                 help="Copiez et collez le texte de votre article ici", 
+                                                 placeholder="Collez le texte de votre article ici...")
             submit_col1, submit_col2 = st.columns([1, 3])
             with submit_col1:
                 submit_btn = st.form_submit_button("Soumettre", use_container_width=True)
@@ -171,7 +224,7 @@ def handle_step1_article_input(input_method):
             if st.button("Régénérer", key="regenerate_btn", use_container_width=True):
                 # Clear previous generation
                 st.session_state.generated = False
-        
+                
                 # Force regeneration with new settings
                 content = auto_generate_content(
                     st.session_state.article_text, 
@@ -189,13 +242,13 @@ def handle_step1_article_input(input_method):
                     st.session_state.article_hash = content['article_hash']
                     st.session_state.generated = True
                     st.rerun()
-        
+            
         with next_col:
             if st.button("Suivant →", key="step1_next", use_container_width=True):
                 next_step()
     
     st.markdown('</div>', unsafe_allow_html=True)
-            
+
 
 def handle_step2_content_generation():
     """Handle content generation step"""
@@ -211,57 +264,57 @@ def handle_step2_content_generation():
     else:
         st.info("Révisez et modifiez le contenu généré ci-dessous.")
         
-        # Add regeneration button
-        if st.button("🔄 Régénérer le contenu", key="regenerate_content_btn"):
-            with st.spinner("Régénération du contenu..."):
-                # Force regeneration with current settings
-                content = auto_generate_content(
-                    st.session_state.article_text, 
-                    st.session_state.bullet_word_count, 
-                    st.session_state.description_word_count,
-                    st.session_state.hashtag_count,
-                    st.session_state.language
-                )
-                
-                if content:
-                    st.session_state.bullet_point = content['bullet_point']
-                    st.session_state.description = content['description']
-                    st.session_state.hashtags = content['hashtags']
-                    st.session_state.category = content['category']
-                    st.session_state.article_hash = content['article_hash']
-                    st.rerun()
-        
-        col1, col2 = st.columns([3, 2])
-        
-        with col1:
-            st.subheader("Point Principal")
-            st.info("Ceci apparaîtra sur votre image")
-            st.session_state.bullet_point = st.text_area(
-                "Éditer le point principal:", 
-                st.session_state.bullet_point, 
-                height=100,
-                key="edit_bullet_point"
+    # Add regeneration button
+    if st.button("🔄 Régénérer le contenu", key="regenerate_content_btn"):
+        with st.spinner("Régénération du contenu..."):
+            # Force regeneration with current settings
+            content = auto_generate_content(
+                st.session_state.article_text, 
+                st.session_state.bullet_word_count, 
+                st.session_state.description_word_count,
+                st.session_state.hashtag_count,
+                st.session_state.language
             )
             
-        with col2:
-            st.subheader("Description de l'Article")
-            st.info("Ceci apparaîtra dans la légende de votre publication (pas sur l'image)")
-            st.session_state.description = st.text_area(
-                "Éditer la description:", 
-                st.session_state.description, 
-                height=150,
-                key="edit_description"
-            )
-        
-        st.subheader("Hashtags")
-        st.info("Ceux-ci apparaîtront dans la légende de votre publication (pas sur l'image)")
-        st.session_state.hashtags = st.text_area(
-            "Éditer les hashtags:", 
-            st.session_state.hashtags, 
+            if content:
+                st.session_state.bullet_point = content['bullet_point']
+                st.session_state.description = content['description']
+                st.session_state.hashtags = content['hashtags']
+                st.session_state.category = content['category']
+                st.session_state.article_hash = content['article_hash']
+                st.rerun()
+    
+    col1, col2 = st.columns([3, 2])
+    
+    with col1:
+        st.subheader("Point Principal")
+        st.info("Ceci apparaîtra sur votre image")
+        st.session_state.bullet_point = st.text_area(
+            "Éditer le point principal:", 
+            st.session_state.bullet_point, 
             height=100,
-            key="edit_hashtags"
+            key="edit_bullet_point"
         )
         
+    with col2:
+        st.subheader("Description de l'Article")
+        st.info("Ceci apparaîtra dans la légende de votre publication (pas sur l'image)")
+        st.session_state.description = st.text_area(
+            "Éditer la description:", 
+            st.session_state.description, 
+            height=150,
+            key="edit_description"
+        )
+    
+    st.subheader("Hashtags")
+    st.info("Ceux-ci apparaîtront dans la légende de votre publication (pas sur l'image)")
+    st.session_state.hashtags = st.text_area(
+        "Éditer les hashtags:", 
+        st.session_state.hashtags, 
+        height=100,
+        key="edit_hashtags"
+    )
+    
     st.markdown("--- ")
     back_col, next_col = st.columns([1, 1])
     with back_col:
@@ -271,9 +324,9 @@ def handle_step2_content_generation():
     with next_col:
         if st.button("Suivant →", key="step2_next", use_container_width=True):
             next_step()
-                    
+        
     st.markdown('</div>', unsafe_allow_html=True)
-    
+
 
 def handle_step3_image_generation(openai_client):
     """Handle image generation step"""
@@ -295,6 +348,16 @@ def handle_step3_image_generation(openai_client):
             display_width = 450
             st.image(img_buf, caption="Votre Image pour Instagram", width=display_width)
             
+            # Display the prompt used if available
+            if 'image_prompt' in st.session_state:
+                with st.expander("Afficher le prompt utilisé pour générer l'image", expanded=False):
+                    st.text_area("Prompt:", st.session_state.image_prompt, height=150, disabled=True)
+                    # Also show the source parameters that were used
+                    st.markdown("#### Détails sur cette image:")
+                    st.markdown(f"**Sujet principal:** {st.session_state.bullet_point}")
+                    st.markdown(f"**Contexte:** {st.session_state.description[:100]}...")
+                    st.info("L'image a été générée en utilisant OpenAI (GPT-Image-1) avec des paramètres de photographie professionnelle optimisés.")
+            
             st.markdown("--- ")
             back_col, next_col = st.columns([1, 1])
             with back_col:
@@ -312,30 +375,46 @@ def handle_step3_image_generation(openai_client):
             
             if choice == "Générer une Image IA":
                 st.info("Cliquez sur le bouton ci-dessous pour créer une image.")
-                gen_col, back_col = st.columns([1, 1])
-                with gen_col:
-                    if st.button("Générer Maintenant", use_container_width=True):
-                        with st.spinner("Création de l'image IA..."):
-                            progress = st.progress(0)
-                            status_msg = st.info("Génération de l'image (cela peut prendre jusqu'à 30 secondes)...")
-                            progress.progress(25)
-                            
-                            # Generate the image
-                            image = generate_image_for_display(
-                                openai_client,
-                                st.session_state.bullet_point,
-                                st.session_state.description
-                            )
-                            
-                            progress.progress(100)
-                            status_msg.empty()
-                            progress.empty()
-                            
-                            st.session_state.base_image = image
-                            st.session_state.image_generated = True
-                            st.rerun()
-                
-                st.markdown('</div>', unsafe_allow_html=True)
+            gen_col, back_col = st.columns([1, 1])
+            with gen_col:
+                if st.button("Générer Maintenant", use_container_width=True):
+                    with st.spinner("Création de l'image IA..."):
+                        progress = st.progress(0)
+                        status_msg = st.info("Génération de l'image (cela peut prendre jusqu'à 30 secondes)...")
+                        progress.progress(25)
+                        
+                        # Generate the image and save the prompt if debug mode is enabled
+                        from src.api.openai_integration import generate_image_prompt
+                        
+                        # Create and store the prompt separately
+                        prompt = generate_image_prompt(
+                            openai_client,
+                            st.session_state.bullet_point,
+                            st.session_state.description,
+                            st.session_state.article_text  # Pass the full article text
+                        )
+                        st.session_state.image_prompt = prompt  # Store the prompt in session state
+                        
+                        progress.progress(50)
+                        
+                        # Generate the image
+                        image = generate_image_for_display(
+                            openai_client,
+                            st.session_state.bullet_point,
+                            st.session_state.description,
+                            False,  # Not using test image
+                            st.session_state.article_text  # Pass the full article text
+                        )
+                        
+                        progress.progress(100)
+                        status_msg.empty()
+                        progress.empty()
+                        
+                        st.session_state.base_image = image
+                        st.session_state.image_generated = True
+                        st.rerun()
+            
+            st.markdown('</div>', unsafe_allow_html=True)
             
 
 def handle_step4_logo_addition():
@@ -420,8 +499,6 @@ def handle_step4_logo_addition():
                         logging.error(f"Error processing/saving uploaded logo: {e}")
                         st.error(f"Erreur lors du traitement du logo: {e}")
     
-   
-
     st.markdown('</div>', unsafe_allow_html=True)
             
 
@@ -445,76 +522,76 @@ def handle_step5_final_post():
         selected_category = st.selectbox(
              "Sélectionner la Catégorie:",
              options=allowed_categories,
-             index=allowed_categories.index(default_category) if default_category in allowed_categories else 0,
-             help="Choisissez l'étiquette de catégorie pour votre image.",
+         index=allowed_categories.index(default_category) if default_category in allowed_categories else 0,
+         help="Choisissez l'étiquette de catégorie pour votre image.",
              key="category_selection"
         )
     
         st.session_state.category = selected_category
         
-        create_col, back_col = st.columns([1, 1])
-        with create_col:
-            if st.button("Créer la Publication", key="create_final_post_btn", use_container_width=True):
-                with st.spinner("Création de votre publication Instagram..."):
-                    progress_bar = st.progress(0)
-                    time.sleep(0.3)
-                    
-                    # Get stored values
-                    bullet_point = st.session_state.bullet_point
-                    description = st.session_state.description
-                    hashtags = st.session_state.hashtags
-                    base_image = st.session_state.base_image
-                    
-                    # Determine which logo to use for the final post
-                    brand_logo_to_use = None
-                    if 'brand_logo' in st.session_state:
-                        brand_logo_to_use = st.session_state.brand_logo
-                    elif 'persistent_logo' in st.session_state:
-                        brand_logo_to_use = st.session_state.persistent_logo
-                    
-                    progress_bar.progress(50)
-                    time.sleep(0.3)
-                    
-                    # Add text overlay
-                    final_image = add_text_to_image(
-                        base_image, 
-                        bullet_point,
-                        st.session_state.category,
-                        brand_logo_to_use,
-                        st.session_state.language
-                    )
-                    
-                    progress_bar.progress(100)
-                    time.sleep(0.3)
-                    progress_bar.empty()
-                    
-                    # Display the final image
-                    st.success("✅ Publication Instagram créée avec succès!")
-                    display_width = 450
-                    st.image(final_image, caption="Prêt pour Instagram", width=display_width)
-                    
-                    # Download button
-                    img_buf = io.BytesIO()
-                    final_image.save(img_buf, format="PNG")
-                    byte_im = img_buf.getvalue()
-                    
-                    st.download_button(
-                        label="Télécharger l'Image",
-                        data=byte_im,
-                        file_name="instagram_post.png",
-                        mime="image/png"
-                    )
-                    
-                    # Display caption
-                    st.subheader("Légende Instagram")
-                    with st.expander("Cliquez pour afficher la légende", expanded=True):
-                        st.text_area("Description:", description, height=100)
-                        st.text_area("Hashtags:", hashtags, height=80)
+    create_col, back_col = st.columns([1, 1])
+    with create_col:
+        if st.button("Créer la Publication", key="create_final_post_btn", use_container_width=True):
+            with st.spinner("Création de votre publication Instagram..."):
+                progress_bar = st.progress(0)
+            time.sleep(0.3)
             
+            # Get stored values
+            bullet_point = st.session_state.bullet_point
+            description = st.session_state.description
+            hashtags = st.session_state.hashtags
+            base_image = st.session_state.base_image
+            
+            # Determine which logo to use for the final post
+            brand_logo_to_use = None
+            if 'brand_logo' in st.session_state:
+                brand_logo_to_use = st.session_state.brand_logo
+            elif 'persistent_logo' in st.session_state:
+                brand_logo_to_use = st.session_state.persistent_logo
+            
+            progress_bar.progress(50)
+            time.sleep(0.3)
+            
+            # Add text overlay
+            final_image = add_text_to_image(
+                base_image, 
+                bullet_point,
+                st.session_state.category,
+                brand_logo_to_use,
+                st.session_state.language
+            )
+            
+            progress_bar.progress(100)
+            time.sleep(0.3)
+            progress_bar.empty()
+            
+            # Display the final image
+            st.success("✅ Publication Instagram créée avec succès!")
+            display_width = 450
+            st.image(final_image, caption="Prêt pour Instagram", width=display_width)
+            
+            # Download button
+            img_buf = io.BytesIO()
+            final_image.save(img_buf, format="PNG")
+            byte_im = img_buf.getvalue()
+            
+            st.download_button(
+                label="Télécharger l'Image",
+                data=byte_im,
+                file_name="instagram_post.png",
+                mime="image/png"
+            )
+            
+            # Display caption
+            st.subheader("Légende Instagram")
+            with st.expander("Cliquez pour afficher la légende", expanded=True):
+                st.text_area("Description:", description, height=100)
+                st.text_area("Hashtags:", hashtags, height=80)
+        
         with back_col:
             if st.button("← Retour", key="step5_back", use_container_width=True):
                 prev_step()
-                
+            
         st.markdown('</div>', unsafe_allow_html=True)
             
 
