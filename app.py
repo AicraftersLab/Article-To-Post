@@ -45,7 +45,7 @@ def main():
     initialize_session_state()
     
     # Configure API keys
-    gemini_configured, openai_client, openai_available = configure_api_keys()
+    openai_available, openai_client, _ = configure_api_keys()
     
     # Load persistent logo
     load_persistent_logo()

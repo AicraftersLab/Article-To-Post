@@ -4,10 +4,8 @@ Configuration and initialization for the Article2Image Streamlit app.
 import logging
 import openai
 import streamlit as st
-import google.generativeai as genai
 import uuid
 
-from src.api.gemini import configure_gemini
 from src.api.openai_integration import configure_openai
 
 
@@ -18,13 +16,12 @@ def setup_logging():
 
 def configure_api_keys():
     """Configure the API keys from Streamlit secrets"""
-    # Configure Google Generative AI
-    gemini_configured = configure_gemini()
-    
-    # Configure OpenAI if API key is available (Optional)
+    # Configure OpenAI
     openai_client, openai_available = configure_openai()
     
-    return gemini_configured, openai_client, openai_available
+    # Return values (keeping the same structure as before but with only OpenAI)
+    # The first value was previously for Gemini configuration success
+    return openai_available, openai_client, openai_available
 
 
 def set_page_config():

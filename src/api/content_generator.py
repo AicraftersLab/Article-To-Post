@@ -4,7 +4,7 @@ Content generation functionality for Article2Image.
 import streamlit as st
 import logging
 
-from src.api.gemini import (
+from src.api.openai_text import (
     generate_summary_bullet, 
     generate_article_description, 
     generate_hashtags,
