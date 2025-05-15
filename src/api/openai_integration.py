@@ -119,6 +119,28 @@ def generate_image_prompt(client, bullet_point, description, article_text=None):
         if article_text is None or article_text.strip() == "":
             article_text = description
             
+        # Extract a potential location from the text for more detailed prompts
+        # This is a simple heuristic - the LLM will do more sophisticated extraction
+        location = "relevant location"
+        if article_text:
+            # Try to find location references in the text
+            import re
+            # Look for city names, countries, or place references that are likely capitalized
+            location_pattern = r'\b([A-Z][a-z]+(?:\s[A-Z][a-z]+)*(?:,\s[A-Z][a-z]+)?)\b'
+            location_matches = re.findall(location_pattern, article_text)
+            
+            # Filter common non-location capitalized words
+            common_non_locations = ["The", "A", "An", "I", "We", "They", "Monday", "Tuesday", 
+                                   "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
+                                   "January", "February", "March", "April", "May", "June", 
+                                   "July", "August", "September", "October", "November", "December"]
+            
+            filtered_locations = [loc for loc in location_matches if loc not in common_non_locations]
+            
+            if filtered_locations:
+                # Use the longest match as it's likely to be more specific
+                location = max(filtered_locations, key=len)
+            
         # Format the lighting_weather_mood based on the content
         lighting_options = [
             "golden hour sunlight", 
@@ -134,6 +156,7 @@ def generate_image_prompt(client, bullet_point, description, article_text=None):
             headline=bullet_point,
             description=description,
             article_text=article_text,
+            location=location,
             lighting_weather_mood=random.choice(lighting_options),
             iso=random.choice(iso_options),
             shutter_speed=random.choice(shutter_options),
@@ -152,7 +175,7 @@ def generate_image_prompt(client, bullet_point, description, article_text=None):
                 {"role": "user", "content": user_prompt}
             ],
             temperature=0.7,
-            max_tokens=400,  # Increased token limit for more detailed prompts
+            max_tokens=3000,  # Increased token limit for more detailed prompts
             response_format={"type": "text"}  # Ensures plain text response
         )
         
@@ -199,12 +222,20 @@ def generate_image(client, bullet_point, description, width=1079, height=1345, a
     try:
         # Call OpenAI's image generation
         logging.info("Calling OpenAI GPT-Image-1 API with optimized prompt")
+        logging.info(f"Using prompt length: {len(scene_prompt)} chars")
+        
+        # Log a truncated version of the prompt for debugging
+        if len(scene_prompt) > 200:
+            logging.info(f"Prompt preview: {scene_prompt[:200]}...")
+        else:
+            logging.info(f"Prompt preview: {scene_prompt}")
+        
         response = client.images.generate(
             model="gpt-image-1",
             prompt=scene_prompt,
             n=1,
-            size="1024x1024",  # Use standard size first
-            quality="high",
+            size="1024x1024",  # Standard size for compatibility
+            quality="high",    # Use high quality setting
         )
         
         # Check if response contains valid data
@@ -267,7 +298,18 @@ def generate_image(client, bullet_point, description, width=1079, height=1345, a
         
     except Exception as e:
         logging.error(f"Error generating image with OpenAI: {e}", exc_info=True)
-        st.error(f"Failed to generate image: {str(e)}")
+        
+        # Try to extract more useful information from the error
+        error_details = str(e)
+        if hasattr(e, 'response') and hasattr(e.response, 'json'):
+            try:
+                error_json = e.response.json()
+                if 'error' in error_json and 'message' in error_json['error']:
+                    error_details = error_json['error']['message']
+            except:
+                pass
+                
+        st.error(f"Failed to generate image: {error_details}")
         # Return a placeholder image with the exact dimensions
         from src.image_processing.placeholder import create_enhanced_placeholder
         return create_enhanced_placeholder(bullet_point, (target_width, target_height)) 

@@ -29,6 +29,7 @@ def generate_image_for_display(client, bullet_point, description, use_test_image
         else:
             # Use OpenAI for image generation directly
             logging.info("Using OpenAI GPT-Image-1 for image generation with full article context")
+            logging.info("IMPORTANT: Ensuring no text, captions, headlines or words in the generated image")
             img = generate_image(client, bullet_point, description, IMG_WIDTH, IMG_HEIGHT, article_text)
         
         # Ensure the image is in RGB mode for compatibility
