@@ -438,8 +438,8 @@ def handle_step5_final_post():
     else:
         # Use session state category if available, default to "Societe"
         default_category = st.session_state.get('category', 'Societe')
-        allowed_categories = ["Societe", "hi-tech", "sports", "nation", "economie", 
-                             "regions", "culture", "monde", "Sante", "LifeStyle"]
+        allowed_categories = ["société", "hi-tech", "sports", "nation", "économie", 
+                             "regions", "culture", "monde", "santé", "LifeStyle"]
 
         st.write("Choisissez une catégorie pour votre publication (ou utilisez celle générée automatiquement):")
         selected_category = st.selectbox(
