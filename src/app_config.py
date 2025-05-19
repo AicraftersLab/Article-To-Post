@@ -20,7 +20,7 @@ def configure_api_keys():
     openai_client, openai_available = configure_openai()
     
     # Return values (keeping the same structure as before but with only OpenAI)
-    # The first value was previously for Gemini configuration success
+   
     return openai_available, openai_client, openai_available
 
 

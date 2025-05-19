@@ -148,7 +148,8 @@ def generate_image_prompt(client, bullet_point, description, article_text=None):
             "soft diffused morning light",
             "dramatic cloudy conditions",
             "blue hour twilight",
-            "neutral indoor lighting"
+            "neutral indoor lighting",
+            "overcast daylight"
         ]
         
         # Format the user prompt template with all the parameters
@@ -175,7 +176,7 @@ def generate_image_prompt(client, bullet_point, description, article_text=None):
                 {"role": "user", "content": user_prompt}
             ],
             temperature=0.7,
-            max_tokens=3000,  # Increased token limit for more detailed prompts
+            max_tokens=5000,  # Increased token limit for more detailed prompts
             response_format={"type": "text"}  # Ensures plain text response
         )
         
