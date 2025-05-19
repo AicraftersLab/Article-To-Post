@@ -4,6 +4,40 @@ Contains system prompts and user prompt templates for generating article summari
 descriptions, hashtags, and category classifications.
 """
 
+# Combined text generation prompt templates
+COMBINED_SYSTEM_PROMPT = """
+You are a skilled content creator specializing in news articles and social media content.
+Your job is to create engaging content in three parts:
+1. A concise bullet point that captures the main message
+2. A compelling description for social media
+3. Relevant hashtags for discoverability
+"""
+
+COMBINED_USER_PROMPT_TEMPLATE = """
+Create content for this article in {language} with the following components:
+
+1. Create 1 concise bullet point (approximately {max_words} words) that summarizes the key point.
+   Make it clear, informative, and capture the most important aspect.
+   Do NOT include a bullet marker or any formatting, just plain text.
+
+2. Write an engaging description (approximately {max_words} words) for social media.
+   Write it directly, as if it's a compelling snippet from the article itself.
+   Do NOT start with phrases like 'This article discusses' or 'The author argues'.
+   Focus on presenting the key information in an informative and captivating way.
+
+3. Generate exactly {num_hashtags} relevant hashtags.
+   Format them as: #Hashtag1 #Hashtag2 #Hashtag3 etc.
+   Make them relevant to the content and appropriate for the language context.
+
+Format your response exactly like this:
+BULLET: [your bullet point here]
+DESCRIPTION: [your description here]
+HASHTAGS: [your hashtags here]
+
+Article:
+{article_text}
+"""
+
 # Bullet point generation prompt templates
 BULLET_SYSTEM_PROMPT = """
 You are a skilled content summarizer specializing in news articles.
